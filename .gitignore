@@ -1,0 +1,6 @@
+__pycache__/
+data/
+NEW_FACE_DATA/
+NEW_FACE_DATAFOLDER/
+NEW_FACE_TRAIN/
+.pt 
