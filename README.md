@@ -138,7 +138,7 @@ user_vector = [성별(인코딩), 선호향(인코딩), 감정향 평균값, 상
 ## Project Structure
 
 ```
-2ndPerfume_recommend/
+perfume_ai/
 ├── main_raspberrypi.py          # [Main] 메인 실행 파일
 ├── app_pc_test.py               # PC 환경 테스트 버전
 ├── preprocessing_perfumes_dataset1.csv  # 향수 데이터셋 (1,003개)
@@ -159,8 +159,8 @@ user_vector = [성별(인코딩), 선호향(인코딩), 감정향 평균값, 상
 
 ```bash
 # 1. 저장소 클론
-git clone https://github.com/taehyeooo/2ndPerfume_recommend.git
-cd 2ndPerfume_recommend
+git clone https://github.com/taehyeooo/yollov8_AI_perfume.git
+cd perfume_ai
 
 # 2. 의존성 설치
 pip install ultralytics opencv-python pandas numpy scikit-learn mlxtend
