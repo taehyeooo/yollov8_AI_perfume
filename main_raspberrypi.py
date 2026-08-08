@@ -10,6 +10,7 @@ from PyQt5 import QtWidgets, QtCore
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.model_selection import train_test_split
 import time
 
 # YOLOv8 감정 인식 모델 로드 (실행 파일과 같은 디렉토리의 best.pt 사용)
@@ -38,6 +39,26 @@ def load_and_prepare_data():
     data_exploded = data_exploded.drop_duplicates(subset=['name', 'department', 'scents', 'base_note_split', 'concentration'])
 
     return data_exploded, le_dict
+
+# Random Forest 모델 학습 및 검증
+# 이전에는 recommend_perfume() 안에서 요청이 들어올 때마다 매번 처음부터 재학습했고,
+# 학습/검증 데이터 분리 없이 전체 데이터로만 fit()하고 있어 모델이 실제로 새로운 향수에도
+# 일반화되는지 확인할 방법이 없었음. 여기서 한 번만 학습해 재사용하고, held-out 검증도 함께 수행함.
+def train_recommendation_model(data_exploded):
+    X = data_exploded[['department', 'scents', 'base_note_split', 'concentration']]
+    y = data_exploded['item_rating']
+
+    # 학습/검증 분리로 일반화 성능(R^2)을 먼저 확인
+    X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+    eval_model = RandomForestRegressor(n_estimators=100, random_state=42)
+    eval_model.fit(X_train, y_train)
+    val_r2 = eval_model.score(X_val, y_val)
+    print(f"[Random Forest 검증] held-out R^2 = {val_r2:.3f} (검증 샘플 {len(X_val)}개)")
+
+    # 검증을 마친 뒤, 실제 추천에 사용할 모델은 전체 데이터로 다시 학습해 데이터를 최대한 활용
+    rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
+    rf_model.fit(X, y)
+    return rf_model
 
 # 감정 인식: 웹캠으로 10초간 얼굴 표정 분석 후 가장 많이 감지된 감정 반환
 def detect_mood():
@@ -74,7 +95,7 @@ def detect_mood():
     return final_mood
 
 # 앙상블 향수 추천: Cosine Similarity(70%) + Random Forest(30%) 조합
-def recommend_perfume(gender, preferred_scent, mood, situation, data_exploded, le_dict):
+def recommend_perfume(gender, preferred_scent, mood, situation, data_exploded, le_dict, rf_model):
     # 사용자 입력값을 인코딩된 숫자로 변환
     gender_encoded = le_dict['department'].transform([gender])[0]
     scent_encoded = le_dict['scents'].transform([preferred_scent])[0]
@@ -104,12 +125,7 @@ def recommend_perfume(gender, preferred_scent, mood, situation, data_exploded, l
     # 사용자 선호 벡터 생성 [성별, 선호향, 감정향, 상황농도]
     user_vector = np.array([gender_encoded, scent_encoded, mood_avg, situation_avg])
 
-    # Random Forest: 향수 특성으로 평점 예측 모델 학습
-    rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
-    X = data_exploded[['department', 'scents', 'base_note_split', 'concentration']]
-    y = data_exploded['item_rating']
-    rf_model.fit(X, y)
-
+    # Random Forest 모델은 train_recommendation_model()에서 미리 학습해 전달받음 (요청마다 재학습하지 않음)
     similarity_scores = []
     for name, group in data_exploded.groupby('name'):
         perfume_vector = np.array([group['department'].iloc[0], group['scents'].iloc[0], group['base_note_split'].mean(), group['concentration'].iloc[0]])
@@ -137,6 +153,7 @@ class PerfumeRecommendationApp(QtWidgets.QWidget):
         super().__init__()
         self.initUI()
         self.data_exploded, self.le_dict = load_and_prepare_data()
+        self.rf_model = train_recommendation_model(self.data_exploded)
         self.selected_gender = None
         self.selected_scent = None
         self.selected_situation = None
@@ -219,7 +236,7 @@ class PerfumeRecommendationApp(QtWidgets.QWidget):
         detected_mood = detect_mood()
 
         # 향수 추천
-        recommendations = recommend_perfume(self.selected_gender, self.selected_scent, detected_mood, self.selected_situation, self.data_exploded, self.le_dict)
+        recommendations = recommend_perfume(self.selected_gender, self.selected_scent, detected_mood, self.selected_situation, self.data_exploded, self.le_dict, self.rf_model)
 
         # 추천 결과 표시
         result_text = f"Detected Mood: {detected_mood}\n\nRecommended Perfumes:\n"

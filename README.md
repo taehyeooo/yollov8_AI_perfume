@@ -137,9 +137,10 @@ print(result)
 ### 향수 추천 테스트
 
 ```python
-from main_raspberrypi import load_and_prepare_data, recommend_perfume
+from main_raspberrypi import load_and_prepare_data, train_recommendation_model, recommend_perfume
 
 data_exploded, le_dict = load_and_prepare_data()
+rf_model = train_recommendation_model(data_exploded)  # 학습/검증 분리로 R^2를 출력하고, 최종 모델은 전체 데이터로 1회만 학습
 
 recommendations = recommend_perfume(
     gender="Women",
@@ -147,7 +148,8 @@ recommendations = recommend_perfume(
     mood="happy",
     situation="everyday",
     data_exploded=data_exploded,
-    le_dict=le_dict
+    le_dict=le_dict,
+    rf_model=rf_model
 )
 
 for perfume in recommendations:
