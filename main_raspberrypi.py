@@ -42,7 +42,8 @@ def load_and_prepare_data():
 # 감정 인식: 웹캠으로 10초간 얼굴 표정 분석 후 가장 많이 감지된 감정 반환
 def detect_mood():
     cap = cv2.VideoCapture(0)
-    mood_counts = {'neutral': 0, 'happy': 0, 'sad': 0, 'angry': 0, 'nervous': 0}
+    # 키는 YOLOv8 모델이 실제로 반환하는 클래스명(anger/fear/happy/neutral/sad)과 정확히 일치해야 함
+    mood_counts = {'neutral': 0, 'happy': 0, 'sad': 0, 'anger': 0, 'fear': 0}
     start_time = time.time()
 
     while True:
@@ -82,8 +83,8 @@ def recommend_perfume(gender, preferred_scent, mood, situation, data_exploded, l
     mood_scents = {
         'happy': ['Floral', 'Fruity', 'Citrus'],
         'sad': ['Woody', 'Vanilla', 'Musk'],
-        'angry': ['Spicy', 'Fresh', 'Citrus'],
-        'nervous': ['Lavender', 'Fresh', 'Floral'],
+        'anger': ['Spicy', 'Fresh', 'Citrus'],
+        'fear': ['Lavender', 'Fresh', 'Floral'],
         'neutral': ['Woody', 'Fresh', 'Musk']
     }.get(mood, [])
 

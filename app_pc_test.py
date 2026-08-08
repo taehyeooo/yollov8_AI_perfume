@@ -37,7 +37,8 @@ def load_and_prepare_data():
 # 감정 인식 (카메라 사용)
 def detect_mood():
     cap = cv2.VideoCapture(0)
-    mood_counts = {'neutral': 0, 'happy': 0, 'sad': 0, 'angry': 0, 'nervous': 0}  # 기분별 카운트 초기화
+    # 키는 YOLOv8 모델이 실제로 반환하는 클래스명(anger/fear/happy/neutral/sad)과 정확히 일치해야 함
+    mood_counts = {'neutral': 0, 'happy': 0, 'sad': 0, 'anger': 0, 'fear': 0}  # 기분별 카운트 초기화
     start_time = time.time()  # 시작 시간 기록
 
     while True:
@@ -72,8 +73,8 @@ def recommend_perfume(gender, preferred_scent, mood, situation, data_exploded, l
     mood_scents = {
         'happy': ['Floral', 'Fruity', 'Citrus'],
         'sad': ['Woody', 'Vanilla', 'Musk'],
-        'angry': ['Spicy', 'Fresh', 'Citrus'],
-        'nervous': ['Lavender', 'Fresh', 'Floral'],
+        'anger': ['Spicy', 'Fresh', 'Citrus'],
+        'fear': ['Lavender', 'Fresh', 'Floral'],
         'neutral': ['Woody', 'Fresh', 'Musk']
     }.get(mood, [])
 
