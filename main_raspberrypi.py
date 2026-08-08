@@ -96,9 +96,16 @@ def detect_mood():
 
 # 앙상블 향수 추천: Cosine Similarity(70%) + Random Forest(30%) 조합
 def recommend_perfume(gender, preferred_scent, mood, situation, data_exploded, le_dict, rf_model):
-    # 사용자 입력값을 인코딩된 숫자로 변환
-    gender_encoded = le_dict['department'].transform([gender])[0]
-    scent_encoded = le_dict['scents'].transform([preferred_scent])[0]
+    # 사용자 입력값을 인코딩된 숫자로 변환 (데이터셋에 없는 값이 들어와도 크래시하지 않도록 평균값으로 대체)
+    if gender in le_dict['department'].classes_:
+        gender_encoded = le_dict['department'].transform([gender])[0]
+    else:
+        gender_encoded = le_dict['department'].transform(le_dict['department'].classes_).mean()
+
+    if preferred_scent in le_dict['scents'].classes_:
+        scent_encoded = le_dict['scents'].transform([preferred_scent])[0]
+    else:
+        scent_encoded = le_dict['scents'].transform(le_dict['scents'].classes_).mean()
 
     # 감정별 어울리는 향 카테고리 매핑
     mood_scents = {
@@ -114,12 +121,14 @@ def recommend_perfume(gender, preferred_scent, mood, situation, data_exploded, l
     mood_avg = np.mean(mood_encoded) if mood_encoded else 0
 
     # 상황별 향수 농도 매핑 (일상: 가벼운 향 / 특별한 날: 진한 향)
+    # 'PDT'는 데이터셋에 실제로 존재하는 고농도 표기(전에는 존재하지 않는 'Parfum'으로 되어 있었음)
     situation_concentration_mapping = {
         'everyday': ['EDT', 'EDC'],
-        'special occasion': ['EDP', 'Parfum']
+        'special occasion': ['EDP', 'PDT']
     }
 
-    situation_encoded = [le_dict['concentration'].transform([c])[0] for c in situation_concentration_mapping[situation]]
+    # 데이터셋에 없는 값은 건너뛰어 안전하게 처리
+    situation_encoded = [le_dict['concentration'].transform([c])[0] for c in situation_concentration_mapping[situation] if c in le_dict['concentration'].classes_]
     situation_avg = np.mean(situation_encoded) if situation_encoded else 0
 
     # 사용자 선호 벡터 생성 [성별, 선호향, 감정향, 상황농도]

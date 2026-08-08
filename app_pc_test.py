@@ -88,9 +88,17 @@ def detect_mood():
 
 # 추천 시스템 로직
 def recommend_perfume(gender, preferred_scent, mood, situation, data_exploded, le_dict, rf_model):
-    gender_encoded = le_dict['department'].transform([gender])[0]
-    scent_encoded = le_dict['scents'].transform([preferred_scent])[0]
-    
+    # 데이터셋에 없는 값이 들어와도 크래시하지 않도록 평균값으로 대체
+    if gender in le_dict['department'].classes_:
+        gender_encoded = le_dict['department'].transform([gender])[0]
+    else:
+        gender_encoded = le_dict['department'].transform(le_dict['department'].classes_).mean()
+
+    if preferred_scent in le_dict['scents'].classes_:
+        scent_encoded = le_dict['scents'].transform([preferred_scent])[0]
+    else:
+        scent_encoded = le_dict['scents'].transform(le_dict['scents'].classes_).mean()
+
     mood_scents = {
         'happy': ['Floral', 'Fruity', 'Citrus'],
         'sad': ['Woody', 'Vanilla', 'Musk'],
@@ -102,16 +110,19 @@ def recommend_perfume(gender, preferred_scent, mood, situation, data_exploded, l
     mood_encoded = [le_dict['scents'].transform([s])[0] for s in mood_scents if s in le_dict['scents'].classes_]
     mood_avg = np.mean(mood_encoded) if mood_encoded else 0
 
+    # 'PDT'는 데이터셋에 실제로 존재하는 고농도 표기(전에는 존재하지 않는 'Parfum'으로 되어 있었음)
     situation_concentration_mapping = {
         'everyday': ['EDT', 'EDC'],
-        'special occasion': ['EDP', 'Parfum']
+        'special occasion': ['EDP', 'PDT']
     }
-    
-    situation_encoded = [le_dict['concentration'].transform([c])[0] for c in situation_concentration_mapping[situation]]
+
+    # 데이터셋에 없는 값은 건너뛰어 안전하게 처리
+    situation_encoded = [le_dict['concentration'].transform([c])[0] for c in situation_concentration_mapping[situation] if c in le_dict['concentration'].classes_]
     situation_avg = np.mean(situation_encoded) if situation_encoded else 0
 
     user_vector = np.array([gender_encoded, scent_encoded, mood_avg, situation_avg])
 
+    # Random Forest 모델은 train_recommendation_model()에서 미리 학습해 전달받음 (요청마다 재학습하지 않음)
     similarity_scores = []
     for name, group in data_exploded.groupby('name'):
         perfume_vector = np.array([group['department'].iloc[0], group['scents'].iloc[0], group['base_note_split'].mean(), group['concentration'].iloc[0]])
